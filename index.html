@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Find any player on Battlelog</title>
+    <meta charset="UTF-8">
+    <meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.18.0/bootstrap-table.min.css"
+        integrity="sha512-9+eWL83icQU9EurxdlXQjhqhQbq/wtbpoQZiWp73jXRHw5cIshFkSw5/d0XOXuQe9AjmWeOQfvdgu/WAA4KDVw=="
+        crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <div class="mb-4 jumbotron">
+            <h1 class="display-4">Find any player on Battlelog</h1>
+            <br>
+            <div id="error" class="alert alert-danger" role="alert" style="display: none;">
+                An error occured searching for the given name. Please again later or with a different name.
+            </div>
+            <form id="search" novalidate>
+                <div class="form-group">
+                    <label for="query">Player name</label>
+                    <input type="text" class="form-control" id="query" name="query" placeholder="mister249">
+                </div>
+                <button id="search" type="submit" class="btn btn-success">Search</button>
+            </form>
+            <div id="results-summary-container" class="mt-2"></div>
+        </div>
+        <div class="mt-4">
+            <table id="results" class="table-bordered table-hover table-striped"></table>
+        </div>
+        <p class="mt-5">Give feedback or report an issue via <a href="mailto:me@cetteup.com" target="_blank">email</a>
+            or <a href="https://twitter.com/cetteup" target="_blank">Twitter</a>.</p>
+        <p class="mt-2">Icon: <a href="https://thenounproject.com/icon/923785/" target="_blank">scan by Bakunetsu Kaito
+                from the Noun Project</a></p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+        integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+        integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+        integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.18.0/bootstrap-table.min.js"
+        integrity="sha512-r+k0ZHRS62LiRIFpBwrwQ14MIT9YPusK7AcoeT34gHdzh2p7FBmU43/aE2ZDem9NM7bSIbMMV23u6zYny28oqg=="
+        crossorigin="anonymous"></script>
+    <script>
+        const handleFormSubmit = event => {
+            event.preventDefault();
+
+            // Show "searching" status
+            $('button#search').prop('disabled', true);
+            $('button#search').html('Searching...');
+            $('table#results').bootstrapTable('removeAll');
+            $('table#results').bootstrapTable('showLoading');
+
+            // Hide error alert
+            $('div#error').hide();
+
+            $.post('https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-search', $('form').serialize())
+                .done(function (data) {
+                    if (typeof data === 'object' && 'data' in data) {
+                        // Convert results to simple array of objects
+                        const results = data.data.map((result) => {
+                            return {
+                                username: `<a href="https://battlelog.battlefield.com/bf4/user/${result.user.username}/" target="_blank">${result.user.username}</a>`,
+                                userId: result.user.userId,
+                                personaName: result.personaName,
+                                personaId: result.personaId
+                            }
+                        });
+                        // Destroy any existing table
+                        $('table#results').bootstrapTable('destroy');
+                        // Build table
+                        $('table#results').bootstrapTable({
+                            columns: [
+                                { field: 'username', title: 'Username', sortable: true },
+                                { field: 'userId', title: 'User id', sortable: true },
+                                { field: 'personaName', title: 'Soldier name', sortable: true },
+                                { field: 'personaId', title: 'Soldier id', sortable: true }
+                            ],
+                            data: results,
+                            pagination: true
+                        })
+                    }
+                })
+                .fail(function () {
+                    $('div#error').show();
+                    $('table#results').bootstrapTable('destroy');
+                })
+                .always(function () {
+                    // Hide "searching" state
+                    $('table#results').bootstrapTable('hideLoading');
+                    $('button#search').html('Search');
+                    $('button#search').prop('disabled', false);
+                })
+        }
+        document.getElementById('search').addEventListener('submit', handleFormSubmit);
+    </script>
+</body>
+
+</html>
