@@ -36,9 +36,13 @@
                     <label for="query">Player name</label>
                     <input type="text" class="form-control" id="query" name="query" placeholder="mister249">
                 </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="bf-only" checked>
+                    <label class="form-check-label" for="bf-only">Only show users with Battlefield/Medal of Honor
+                        soldiers</label>
+                </div>
                 <button id="search" type="submit" class="btn btn-success">Search</button>
             </form>
-            <div id="results-summary-container" class="mt-2"></div>
         </div>
         <div class="mt-4">
             <table id="results" class="table-bordered table-hover table-striped"></table>
@@ -63,7 +67,7 @@
         integrity="sha512-r+k0ZHRS62LiRIFpBwrwQ14MIT9YPusK7AcoeT34gHdzh2p7FBmU43/aE2ZDem9NM7bSIbMMV23u6zYny28oqg=="
         crossorigin="anonymous"></script>
     <script>
-        // Set up labels
+        // Set up labels and numbers
         const platformLabels = {
             1: 'PC',
             2: 'XBOX360',
@@ -89,6 +93,7 @@
             4096: "MOHW",
             8192: "BFH"
         };
+        const gameNumbers = Object.keys(gameLabels).reverse().map((numberStr) => Number(numberStr));
 
         // Set up Handlebars helpers
         Handlebars.registerHelper('tolower', function (value) {
@@ -122,13 +127,19 @@
             $.post('https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-search', $('form').serialize())
                 .done(function (resp) {
                     if (typeof resp === 'object' && 'data' in resp) {
-                        // Convert results to simple array of objects
+                        // Filter user without any Battlefield games if required
                         const results = resp.data.map((result) => {
+                            const personaGames = Object.values(result.games).flatMap((value) => parseGameTotal(value));
+                            // Check if persona exists in at least one Battlelog game (BF3 = 2, BF4 = 2048, MOHW = 4096 or BFH = 8192)
+                            const battlelogPersona = [2, 2048, 4096, 8192].some((elem) => personaGames.includes(elem));
+
+                            // Convert results to simple array of objects
                             return {
                                 username: `<a href="https://battlelog.battlefield.com/bf4/user/${result.user.username}/" target="_blank">${result.user.username}</a>`,
                                 userId: result.user.userId,
                                 personaName: result.personaName,
                                 personaId: result.personaId,
+                                battlelogPersona: battlelogPersona
                             }
                         });
                         // Destroy any existing table
@@ -147,7 +158,12 @@
                             detailViewIcon: true,
                             detailViewByClick: true,
                             detailFormatter: detailFormatter
-                        })
+                        });
+
+                        // Apply filter if required
+                        if ($('input#bf-only').prop('checked')) {
+                            $('table#results').bootstrapTable('filterBy', { battlelogPersona: true });
+                        }
                     }
                 })
                 .fail(function () {
@@ -163,12 +179,11 @@
         }
 
         const detailFormatter = (index, row) => {
-            let soldiers;
             $.get(`https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-overview/${row.userId}`)
                 .done(function (resp) {
                     if (typeof resp === 'object' && 'data' in resp) {
                         // Reformat and label soldier data
-                        soldiers = resp.data.soldiersBox.map((soldier) => {
+                        let soldiers = resp.data.soldiersBox.map((soldier) => {
                             return {
                                 personaId: soldier.persona.personaId,
                                 personaName: soldier.persona.personaName,
@@ -222,7 +237,30 @@
             return `<div id="detail-view-${index}"><div class="spinner-grow" role="status"></div><table></table></div>`;
         }
 
+        const handleBattlelogFilterToggle = event => {
+            $('table#results').bootstrapTable('filterBy', event.target.checked ? { battlelogPersona:  true } : {});
+        }
+
+        /**
+        * Battlelog sums up game numbers to only transfer a single value for all BF/MOG games a user has.
+        * In order to revert this, check if game's numbers are "contained" in the game number and subtract, starting with the highest game number.
+        */
+        const parseGameTotal = gameTotal => {
+            let games = [];
+            let currentGame = 0;
+            while (gameTotal > 0 && currentGame < gameNumbers.length) {
+                const gameNumber = gameNumbers[currentGame];
+                if (gameTotal >= gameNumber) {
+                    games.push(gameNumber);
+                    gameTotal -= gameNumber;
+                }
+                currentGame++;
+            }
+            return games;
+        }
+        
         document.getElementById('search').addEventListener('submit', handleFormSubmit);
+        document.getElementById('bf-only').addEventListener('change', handleBattlelogFilterToggle);
     </script>
 </body>
 
