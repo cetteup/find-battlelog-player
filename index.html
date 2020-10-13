@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.18.0/bootstrap-table.min.css"
         integrity="sha512-9+eWL83icQU9EurxdlXQjhqhQbq/wtbpoQZiWp73jXRHw5cIshFkSw5/d0XOXuQe9AjmWeOQfvdgu/WAA4KDVw=="
         crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"
+        integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA=="
+        crossorigin="anonymous" />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
         integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
 </head>
@@ -39,6 +42,8 @@
         <p class="mt-2">Icon: <a href="https://thenounproject.com/icon/923785/" target="_blank">scan by Bakunetsu Kaito
                 from the Noun Project</a></p>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.6/dist/handlebars.js"
+        integrity="sha256-ZafrO8ZXERYO794Tx1hPaAcdcXNZUNmXufXOSe0Hxj8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
         integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
         crossorigin="anonymous"></script>
@@ -52,6 +57,50 @@
         integrity="sha512-r+k0ZHRS62LiRIFpBwrwQ14MIT9YPusK7AcoeT34gHdzh2p7FBmU43/aE2ZDem9NM7bSIbMMV23u6zYny28oqg=="
         crossorigin="anonymous"></script>
     <script>
+        // Set up labels
+        const platformLabels = {
+            1: 'PC',
+            2: 'XBOX360',
+            4: 'PS3',
+            8: 'XBOX',
+            16: 'PS2',
+            32: 'PS4',
+            64: 'XBOXONE'
+        };
+        const gameLabels = {
+            1: "BFBC2",
+            2: "BF3",
+            4: "BF1942",
+            8: "BF1943",
+            16: "BFVIETNAM",
+            32: "BF2",
+            64: "BF2142",
+            128: "BFBC",
+            256: "BFHEROES",
+            512: "BFMC",
+            1024: "BFP4F",
+            2048: "BF4",
+            4096: "MOHW",
+            8192: "BFH"
+        };
+
+        // Set up Handlebars helpers
+        Handlebars.registerHelper('tolower', function (value) {
+            return String(value).toLowerCase();
+        });
+
+        // Set up Handlebars templates
+        const extLinkTemplate = Handlebars.compile('<a href="{{url}}" target="_blank" title="{{title}}"><i class="fas fa-external-link-square-alt"></i></a>');
+        const linkTargets = {
+            generic: [
+                { title: 'View soldier on Battlelog', urlTemplate: Handlebars.compile('https://battlelog.battlefield.com/{{tolower gameLabel}}/soldier/{{personaName}}/stats/{{personaId}}/{{tolower platformLabel}}/') }
+            ],
+            bf4: [
+                { title: 'View soldier on BF4DB', urlTemplate: Handlebars.compile('https://bf4db.com/player/{{personaId}}') },
+                { title: 'View soldier on bf4cheatreport', urlTemplate: Handlebars.compile('https://bf4cheatreport.com/?pid={{personaId}}') }
+            ]
+        }
+
         const handleFormSubmit = event => {
             event.preventDefault();
 
@@ -65,15 +114,15 @@
             $('div#error').hide();
 
             $.post('https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-search', $('form').serialize())
-                .done(function (data) {
-                    if (typeof data === 'object' && 'data' in data) {
+                .done(function (resp) {
+                    if (typeof resp === 'object' && 'data' in resp) {
                         // Convert results to simple array of objects
-                        const results = data.data.map((result) => {
+                        const results = resp.data.map((result) => {
                             return {
                                 username: `<a href="https://battlelog.battlefield.com/bf4/user/${result.user.username}/" target="_blank">${result.user.username}</a>`,
                                 userId: result.user.userId,
                                 personaName: result.personaName,
-                                personaId: result.personaId
+                                personaId: result.personaId,
                             }
                         });
                         // Destroy any existing table
@@ -84,10 +133,14 @@
                                 { field: 'username', title: 'Username', sortable: true },
                                 { field: 'userId', title: 'User id', sortable: true },
                                 { field: 'personaName', title: 'Soldier name', sortable: true },
-                                { field: 'personaId', title: 'Soldier id', sortable: true }
+                                { field: 'personaId', title: 'Soldier id', sortable: true },
                             ],
                             data: results,
-                            pagination: true
+                            pagination: true,
+                            detailView: true,
+                            detailViewIcon: true,
+                            detailViewByClick: true,
+                            detailFormatter: detailFormatter
                         })
                     }
                 })
@@ -102,6 +155,67 @@
                     $('button#search').prop('disabled', false);
                 })
         }
+
+        const detailFormatter = (index, row) => {
+            let soldiers;
+            $.get(`https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-overview/${row.userId}`)
+                .done(function (resp) {
+                    if (typeof resp === 'object' && 'data' in resp) {
+                        // Reformat and label soldier data
+                        soldiers = resp.data.soldiersBox.map((soldier) => {
+                            return {
+                                personaId: soldier.persona.personaId,
+                                personaName: soldier.persona.personaName,
+                                active: soldier.active,
+                                isPersonaBanned: soldier.isPersonaBanned,
+                                platform: soldier.platform,
+                                platformLabel: platformLabels[soldier.platform],
+                                game: soldier.game,
+                                gameLabel: gameLabels[soldier.game]
+                            };
+                        });
+
+                        // Add links
+                        soldiers.forEach((soldier) => {
+                            let linksHtml = [];
+                            // Add generic links
+                            linkTargets.generic.forEach((target) => {
+                                const url = target.urlTemplate(soldier);
+                                linksHtml.push(extLinkTemplate({ url: url, ...target }));
+                            });
+                            // Add game specific links if required
+                            if (soldier.gameLabel.toLowerCase() in linkTargets) {
+                                linkTargets[soldier.gameLabel.toLowerCase()].forEach((target) => {
+                                    const url = target.urlTemplate(soldier);
+                                    linksHtml.push(extLinkTemplate({ url: url, ...target }));
+                                });
+                            }
+
+                            soldier.links = linksHtml.join(' ');
+                        });
+
+                        // Remove spinner
+                        $(`div#detail-view-${index} > div.spinner-grow`).remove();
+
+                        // Build detail view table
+                        $(`div#detail-view-${index} > table`).bootstrapTable({
+                            columns: [
+                                { field: 'personaName', title: 'Soldier name', sortable: true },
+                                { field: 'personaId', title: 'Soldier id', sortable: true },
+                                { field: 'active', title: 'Active', sortable: true },
+                                { field: 'isPersonaBanned', title: 'Banned', sortable: true },
+                                { field: 'platformLabel', title: 'Platform', sortable: true },
+                                { field: 'gameLabel', title: 'Game', sortable: true },
+                                { field: 'links', title: 'Links' }
+                            ],
+                            data: soldiers
+                        });
+                    }
+                })
+
+            return `<div id="detail-view-${index}"><div class="spinner-grow" role="status"></div><table></table></div>`;
+        }
+
         document.getElementById('search').addEventListener('submit', handleFormSubmit);
     </script>
 </body>
