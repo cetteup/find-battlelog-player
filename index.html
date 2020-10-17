@@ -136,7 +136,7 @@
             // Hide error alert
             $('div#error').hide();
 
-            $.post('https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-search', $('form').serialize())
+            $.post('https://battlelog-query.cetteup.com/battlelog-user-search', $('form').serialize())
                 .done(function (resp) {
                     if (typeof resp === 'object' && 'data' in resp) {
                         // Filter user without any Battlefield games if required
@@ -191,7 +191,7 @@
         }
 
         const detailFormatter = (index, row) => {
-            $.get(`https://53wkatxtk8.execute-api.eu-central-1.amazonaws.com/battlelog-user-overview/${row.userId}`)
+            $.get(`https://battlelog-query.cetteup.com/battlelog-user-overview/${row.userId}`)
                 .done(function (resp) {
                     if (typeof resp === 'object' && 'data' in resp) {
                         // Reformat and label soldier data
