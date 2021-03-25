@@ -131,7 +131,7 @@
             // Hide error alert
             $('div#error').hide();
 
-            $.post('https://battlelog-query.cetteup.com/battlelog-user-search', $('form').serialize())
+            $.get('https://battlelog-query.cetteup.com/battlelog-user-search', { nick: $('input#query').val() })
                 .done(function (resp) {
                     if (typeof resp === 'object' && 'data' in resp) {
                         // Filter user without any Battlefield games if required
