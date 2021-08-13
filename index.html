@@ -39,7 +39,12 @@
                     <label class="form-check-label" for="bf-only">Only show users with Battlefield/Medal of Honor
                         soldiers</label>
                 </div>
-                <button id="search" type="submit" class="btn btn-success">Search</button>
+                <div class="d-flex">
+                    <button class="btn btn-success d-flex align-items-center" id="search" type="submit">
+                        <span aria-hidden="true" class="spinner-border spinner-border-sm mr-2" role="status" style="display: none"></span>
+                        Search
+                    </button>
+                </div>
             </form>
         </div>
         <div class="mt-4">
@@ -112,7 +117,7 @@
 
             // Show "searching" status
             $('button#search').prop('disabled', true);
-            $('button#search').html('Searching...');
+            $('button#search span[role="status"]').show();
             $('table#results').bootstrapTable('removeAll');
             $('table#results').bootstrapTable('showLoading');
 
@@ -168,7 +173,7 @@
                 .always(function () {
                     // Hide "searching" state
                     $('table#results').bootstrapTable('hideLoading');
-                    $('button#search').html('Search');
+                    $('button#search span[role="status"]').hide();
                     $('button#search').prop('disabled', false);
                 })
         }
